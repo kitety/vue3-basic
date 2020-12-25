@@ -1,9 +1,17 @@
 <template>
-  <div>{{ count }}--{{ double }}</div>
-  <button @click="increase">增加</button>
-  <div>{{ x }}--{{ y }}</div>
-  <div v-if="urlData.loading">还在加载中哦</div>
-  <div v-else><img :src="urlData.result.message" alt="" /></div>
+  <div>
+    <Suspense>
+      <!-- Promise all  可以放多个组件 -->
+      <template #default><async-show /></template>
+      <template #fallback><h1>loading111</h1></template>
+    </Suspense>
+    <div>{{ count }}--{{ double }}</div>
+    <button @click="increase">增加</button>
+    <div>{{ x }}--{{ y }}</div>
+    <div v-if="urlData.loading">还在加载中哦</div>
+    <div v-if="urlData.loaded"><img :src="urlData.result[0].url" alt="" /></div>
+    <hello-world msg="12"></hello-world>
+  </div>
 </template>
 
 <script lang="ts">
@@ -15,16 +23,31 @@ import {
   toRefs,
   onRenderTriggered,
   watch,
+  onErrorCaptured,
 } from "vue";
 interface DataProps {
   count: number;
   double: number;
   increase: () => void;
 }
+interface DogApi {
+  message: string;
+  status: string;
+}
+interface CatApi {
+  breeds: [];
+  id: string;
+  url: string;
+  width: number;
+  height: number;
+}
 import useMousePosition from "./hooks/useMousePosition";
 import useURLLoaders from "./hooks/useURLLoaders";
+import HelloWorld from "./components/HelloWorld.vue";
+import AsyncShow from "./components/AsyncShow.vue";
 export default defineComponent({
   name: "App",
+  components: { HelloWorld, AsyncShow },
   // 这个函数只会执行一次
   setup() {
     const titleCount = ref(0);
@@ -47,12 +70,17 @@ export default defineComponent({
     watch([() => data.count], () => {
       document.title = "" + data.count;
     });
-    const urlData = useURLLoaders<{
-      message: string;
-      status: string;
-    }>("https://dog.ceo/api/breeds/image/random");
+    const urlData = useURLLoaders<CatApi[]>(
+      "https://api.thecatapi.com/v1/images/search"
+    );
+    // const urlData = useURLLoaders<DogApi>(
+    //   "https://dog.ceo/api/breeds/image/random"
+    // );
+    onErrorCaptured((e) => {
+      console.log("e: ", e);
+    });
     watch([() => urlData.result], () => {
-      if (urlData.result) console.log(urlData.result.message);
+      console.log(urlData.result?.[0].url);
     });
 
     // 失去reactive响应式 普通对象--toRefs
